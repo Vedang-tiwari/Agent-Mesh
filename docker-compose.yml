@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: agentmesh-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-agentmesh}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentmesh}
+      POSTGRES_DB: ${POSTGRES_DB:-agentmesh}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-agentmesh} -d ${POSTGRES_DB:-agentmesh}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: agentmesh-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: agentmesh-backend
+    environment:
+      APP_NAME: AgentMesh
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-agentmesh}:${POSTGRES_PASSWORD:-agentmesh}@postgres:5432/${POSTGRES_DB:-agentmesh}
+      REDIS_URL: redis://redis:6379/0
+      OTEL_ENABLED: ${OTEL_ENABLED:-false}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  redis_data:
+
