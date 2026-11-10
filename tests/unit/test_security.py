@@ -46,3 +46,4 @@ def test_validate_agent_endpoint_allows_private_in_dev_but_never_metadata() -> N
     )
     with pytest.raises(UnsafeEndpointError, match="metadata"):
         validate_agent_endpoint("http://169.254.169.254", allow_private=True)
+

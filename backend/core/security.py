@@ -61,3 +61,4 @@ def validate_agent_endpoint(url: str, allow_private: bool = False) -> str:
             )
 
     return trimmed.rstrip("/")
+
